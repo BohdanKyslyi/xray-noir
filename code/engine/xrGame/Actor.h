@@ -89,8 +89,8 @@ public:
     [[nodiscard]] virtual CGameObject* cast_game_object() override { return this; }
     [[nodiscard]] virtual IInputReceiver* cast_input_receiver() override { return this; }
     
-    // Џрибрано const перевантаженнЯ, щоб не сварилосЯ з фґзикою
     [[nodiscard]] virtual CCharacterPhysicsSupport* character_physics_support() override { return m_pPhysics_support; }
+    [[nodiscard]] virtual const CCharacterPhysicsSupport* character_physics_support() const override { return m_pPhysics_support; }
     [[nodiscard]] virtual CPHDestroyable* ph_destroyable() override;
     
     [[nodiscard]] CHolderCustom* Holder() const { return m_holder; }
@@ -225,6 +225,32 @@ private:
 
 public:
     bool m_bAllowDeathRemove = false;
+	void SetReverseGravity(bool state);
+    bool m_bReverseGravity = false;
+    float m_fReverseGravityProgress = 0.0f; 
+	
+    struct SOrbitObject {
+        u16 id;                 
+        float target_radius;    
+        float base_speed;      
+        float phase;            
+        Fvector spin_axis;      
+        float height_offset;    
+		Fvector start_pos;      
+        float time_captured;    
+    };
+
+    xr_vector<SOrbitObject> m_OrbitObjects;
+    u8 m_AnomalyState = 0; 
+    Fvector m_AnomalyCenter;
+	
+	float m_ActorCaptureTime = 0.0f;
+    float m_AnomalyRadius = 15.0f;
+
+    void StartOrbitAnomaly(Fvector center, float radius);
+    void SetOrbitAttack();
+    void StopOrbitAnomaly();
+    void UpdateOrbitAnomaly(); 
 
     void SetZoomRndSeed(s32 Seed = 0);
     [[nodiscard]] s32 GetZoomRndSeed() const { return m_ZoomRndSeed; }
@@ -305,7 +331,7 @@ protected:
     void cam_SetLadder();
     void cam_UnsetLadder();
 
-    // Џђ€ЃђЂЌЋ CONST
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ CONST
     [[nodiscard]] float currentFOV();
 
     CCameraBase* cameras[eacMaxCam] = {nullptr};
@@ -362,7 +388,7 @@ public:
     void g_Orientate(u32 mstate_rl, float dt);
     bool g_LadderOrient();
 
-    // Џђ€ЃђЂЌЋ CONST
+    // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ CONST
     [[nodiscard]] bool CanAccelerate();
     [[nodiscard]] bool CanJump();
     [[nodiscard]] bool CanMove();

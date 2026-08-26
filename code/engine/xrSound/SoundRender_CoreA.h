@@ -48,6 +48,28 @@ public:
     float env_reflections_delay;
     float env_reverb_delay;
     float env_room_rolloff_factor;
+    float env_reflections;
+    float env_reverb;
+    float env_air_absorption_hf;
+
+    // СКРИПТОВИЙ OVERRIDE EFX 
+    bool  bEFX_ScriptOverride;
+    float s_env_density;
+    float s_env_room;
+    float s_env_room_hf;
+    float s_env_decay_time;
+    float s_env_decay_hf_ratio;
+    float s_env_reflections_delay;
+    float s_env_reverb_delay;
+    float s_env_room_rolloff_factor;
+    float s_env_reflections;
+    float s_env_reverb;
+    float s_env_air_absorption_hf;
+
+    // Ручне введення ефектів
+    virtual void set_efx_override(bool bEnable, float room = -10000.0f, float room_hf = 0.0f, float decay_time = 1.0f, float decay_hf_ratio = 0.5f, float reflections_delay = 0.02f, float reverb_delay = 0.04f, float room_rolloff_factor = 0.0f, float diffusion = 1.0f, float reflections = -2602.0f, float reverb = 200.0f, float air_absorption_hf = -5.0f);
+    // Читання готового пресета з LTX
+    virtual void set_efx_override(LPCSTR preset_name);
 
 protected:
     virtual void update_listener(const Fvector& P, const Fvector& D, const Fvector& N, float dt);

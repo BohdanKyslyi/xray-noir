@@ -47,6 +47,8 @@
 #include "HudItem.h"
 #include "Weapon.h"
 #include "xr_level_controller.h"
+#include "ui\UICinematicBorders.h"
+#include "UIGameCustom.h"
 
 using namespace luabind;
 
@@ -717,6 +719,49 @@ void stop_all_custom_sounds_script() {
     g_script_sounds.clear();
 }
 
+// === NOIR ENGINE: Cinematic EFX Control ===
+void set_efx_override_script(float room, float room_hf, float decay_time, float decay_hf_ratio, float reflections_delay, float reverb_delay, float room_rolloff_factor, float diffusion, float reflections, float reverb, float air_absorption_hf) {
+    if (Sound) {
+        Sound->set_efx_override(true, room, room_hf, decay_time, decay_hf_ratio, reflections_delay, reverb_delay, room_rolloff_factor, diffusion, reflections, reverb, air_absorption_hf);
+    }
+}
+
+void set_efx_preset_script(LPCSTR preset_name) {
+    if (Sound) {
+        Sound->set_efx_override(preset_name);
+    }
+}
+
+void disable_efx_override_script() {
+    if (Sound) {
+        Sound->set_efx_override(false);
+    }
+}
+// ==========================================
+
+// Статичний вказівник, який гарантує, що об'єкт існує і ним не керує збирач сміття Lua
+static CCinematicBorders* g_cinematic_borders = nullptr;
+
+void show_cinematic_borders_script(int appear_type, u32 duration_ms) {
+    if (!g_cinematic_borders) {
+        g_cinematic_borders = xr_new<CCinematicBorders>();
+    }
+    
+    if (CurrentGameUI()) {
+        // Запобігаємо дублюванню у списку рендера
+        CurrentGameUI()->RemoveDialogToRender(g_cinematic_borders);
+        CurrentGameUI()->AddDialogToRender(g_cinematic_borders);
+    }
+    
+    g_cinematic_borders->Show(appear_type, duration_ms);
+}
+
+void hide_cinematic_borders_script(int disappear_type, u32 duration_ms) {
+    if (g_cinematic_borders) {
+        g_cinematic_borders->Hide(disappear_type, duration_ms);
+    }
+}
+
 void show_indicators() {
     if (CurrentGameUI()) {
         CurrentGameUI()->ShowGameIndicators(true);
@@ -1085,6 +1130,15 @@ void CLevel::script_register(lua_State* L) {
         
         def("play_sound_3d", &play_sound_3d_script),
         def("stop_custom_sounds", &stop_all_custom_sounds_script),
+		
+		// === NOIR ENGINE: Cinematic EFX Control ===
+        def("set_efx_override", &set_efx_override_script),
+        def("set_efx_preset", &set_efx_preset_script),
+        def("disable_efx_override", &disable_efx_override_script),
+		
+		def("show_cinematic_borders", &show_cinematic_borders_script),
+        def("hide_cinematic_borders", &hide_cinematic_borders_script),
+        // ==========================================
 		
         def("add_call",
             ((void (*)(const luabind::functor<bool>&, const luabind::functor<void>&)) & add_call)),

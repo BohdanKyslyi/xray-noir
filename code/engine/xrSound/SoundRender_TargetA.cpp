@@ -148,16 +148,20 @@ void CSoundRender_TargetA::fill_parameters() {
     {
         alSourcePlay(pSource);
     }
-
-    // EFX РЕФАКТОРИНГ: Підключення джерела до слоту реверберації та фільтрів 
+ 
+	// EFX РЕФАКТОРИНГ: Підключення джерела до слоту реверберації та фільтрів 
     if (SoundRenderA->bEFX) {
-        if (m_pEmitter->b2D) {
+        // Дістаємо тип звуку: Музика чи Ефекти (зброя, кроки тощо)
+        esound_type soundType = m_pEmitter->owner_data->s_type;
+
+        // Вимикаємо луну ТІЛЬКИ якщо це 2D звук І це фонова музика
+        if (m_pEmitter->b2D && soundType == st_Music) {
             // Музику і UI звуки не пропускаємо через реверберацію Зони
             A_CHK(alSource3i(pSource, AL_AUXILIARY_SEND_FILTER, AL_EFFECTSLOT_NULL, 0, AL_FILTER_NULL));
             // Також вимикаємо будь-які Low-Pass фільтри для 2D звуків
             A_CHK(alSourcei(pSource, AL_DIRECT_FILTER, AL_FILTER_NULL));
         } else {
-            // 3D звуки підключаємо до створеного слоту ефектів луни
+            // 3D звуки АБО 2D-ефекти (зброя в руках актора) підключаємо до слоту луни
             A_CHK(alSource3i(pSource, AL_AUXILIARY_SEND_FILTER, SoundRenderA->effect_slot, 0, AL_FILTER_NULL));
 
             // ДИНАМІЧНИЙ LOW-PASS FILTER (ОКЛЮЗІЯ ЗА СТІНАМИ)

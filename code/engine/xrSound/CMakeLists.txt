@@ -7,7 +7,7 @@ set(CORE_SRC SoundRender_Core.h SoundRender_Core.cpp SoundRender_Core_Processor.
              SoundRender_Core_SourceManager.cpp SoundRender_Core_StartStop.cpp)
 set(CORE_OPENAL_SRC SoundRender_CoreA.h SoundRender_CoreA.cpp)
 set(EMITTER_SRC SoundRender_Emitter.h SoundRender_Emitter.cpp SoundRender_Emitter_FSM.cpp
-                SoundRender_Emitter_StartStop.cpp SoundRender_Emitter_streamer.cpp)
+                SoundRender_Emitter_StartStop.cpp SoundRender_Emitter_streamer.cpp SoundRender_Acoustics.cpp SoundRender_Acoustics.h)
 set(ENV_SRC SoundRender_Environment.h SoundRender_Environment.cpp)
 set(KERNEL_SRC cl_intersect.h Sound.h sound.cpp SoundRender.h stdafx.h stdafx.cpp)
 set(SOURCE_SRC SoundRender_Source.h SoundRender_Source.cpp SoundRender_Source_loader.cpp)

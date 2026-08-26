@@ -523,6 +523,12 @@ public:
                     u32 min_stop_time);
     void play_sound(u32 internal_type, u32 max_start_time, u32 min_start_time, u32 max_stop_time,
                     u32 min_stop_time, u32 id);
+					
+	void SetReverseGravity(bool state);
+	
+	void StartOrbitAnomaly(Fvector* center, float radius);
+	void SetOrbitAttack();
+	void StopOrbitAnomaly();
 
     void set_item(MonsterSpace::EObjectAction object_action);
     void set_item(MonsterSpace::EObjectAction object_action, CScriptGameObject* game_object);

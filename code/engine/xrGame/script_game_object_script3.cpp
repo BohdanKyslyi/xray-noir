@@ -309,6 +309,12 @@ class_<CScriptGameObject> script_register_game_object2(class_<CScriptGameObject>
 
         // monster jumper
         .def("jump", &CScriptGameObject::jump)
+		
+		.def("set_reverse_gravity", &CScriptGameObject::SetReverseGravity)
+		
+		.def("start_orbit", &CScriptGameObject::StartOrbitAnomaly)
+		.def("attack_orbit", &CScriptGameObject::SetOrbitAttack)
+		.def("stop_orbit", &CScriptGameObject::StopOrbitAnomaly)
 
         .def("make_object_visible_somewhen", &CScriptGameObject::make_object_visible_somewhen)
 

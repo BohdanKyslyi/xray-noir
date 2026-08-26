@@ -3558,25 +3558,59 @@ end
 
 -- ========================================================================
 -- Function:    fly_camera_path
--- Description: Flies the camera smoothly along a standard SDK patrol path.
---              Can optionally track a specific object while flying.
---
--- Usage: %=fly_camera_path(patrol_walk_name:time:focus_object_name)%
---
--- Parameters:
---   1. patrol_name  (string) - Name of the patrol path on the level. (Required)
---   2. time         (float)  - Total flight duration in seconds. (Required)
---   3. focus_target (string) - story_id of the object to look at during flight. (Optional)
---
--- Examples:
---   - Fly and look forward: %=fly_camera_path(scene_path_1:10.0)%
---   - Fly but keep the camera focused on a mutant: %=fly_camera_path(scene_path_1:10.0:bloodsucker_01)%
--- ========================================================================
 function fly_camera_path(actor, npc, p)
     if p and p[1] and p[2] then 
-        director.start_camera_flight_path(p[1], tonumber(p[2]), p[3]) 
-    else
-        abort("! ERROR: xr_effects.fly_camera_path requires (patrol_name:time)")
+        local patrol_name = p[1]
+        local flight_time = tonumber(p[2]) or 0.0
+        local entry_time = 0.0
+        local exit_time = 0.0
+        local look_mode = 0 -- 0 = вперед
+        local focus_target = nil
+        local teleport_to_end = false
+        
+        -- Обробка 3-го параметра (entry_time АБО ціль)
+        if p[3] then
+            if tonumber(p[3]) then 
+                entry_time = tonumber(p[3]) 
+            else 
+                look_mode = 2 
+                focus_target = p[3] 
+            end
+        end
+        
+        -- Обробка 4-го параметра (exit_time АБО ціль)
+        if p[4] and not focus_target then
+            if tonumber(p[4]) then 
+                exit_time = tonumber(p[4]) 
+            else 
+                look_mode = 2
+                focus_target = p[4] 
+            end
+        end
+        
+        -- Обробка 5-го параметра (look_mode АБО ціль)
+        if p[5] and not focus_target then
+            if tonumber(p[5]) then
+                look_mode = tonumber(p[5])
+            else
+                look_mode = 2
+                focus_target = p[5]
+            end
+        end
+
+        -- Обробка 6-го параметра (явна ціль)
+        if p[6] and not focus_target then
+            focus_target = p[6]
+        end
+
+        -- Обробка 7-го параметра (телепорт в кінці: 1 або true)
+        if p[7] then
+            if p[7] == "true" or p[7] == "1" or tonumber(p[7]) == 1 then
+                teleport_to_end = true
+            end
+        end
+        
+        director.start_camera_flight_path(patrol_name, flight_time, entry_time, exit_time, look_mode, focus_target, teleport_to_end) 
     end
 end
 
@@ -3656,4 +3690,77 @@ end
 -- ========================================================================
 function stop_custom_sounds(actor, npc) 
     director.stop_custom_sounds() 
+end
+
+-- ==============================================================================
+-- NOIR ENGINE: Звукові EFX ефекти (Луна, акустика)
+-- ==============================================================================
+
+-- Виклик готового пресета з noirEnvZone.ltx
+-- Використання в логіці: %=set_efx_preset(назва_секції)%
+function set_efx_preset(actor, npc, p)
+    if p and p[1] then
+        level.set_efx_preset(p[1])
+    else
+        abort("Помилка: set_efx_preset потребує назву пресета як параметр!")
+    end
+end
+
+-- Вимкнення кастомного ефекту (повернення до фізичної зони)
+-- Використання в логіці: %=disable_efx%
+function disable_efx(actor, npc, p)
+    level.disable_efx_override()
+end
+
+-- Ручне введення всіх параметрів (для унікальних кат-сцен)
+-- Використання в логіці: %=set_efx_override(room:room_hf:decay_time:decay_hf_ratio:reflections_delay:reverb_delay:room_rolloff:diffusion:reflections:reverb:air_hf)%
+function set_efx_override(actor, npc, p)
+    if p and #p >= 8 then
+        -- Переводимо текстові параметри з логіки в числа. Для останніх 3 параметрів (з SDK) робимо дефолтні значення, якщо їх не ввели.
+        local room = tonumber(p[1])
+        local room_hf = tonumber(p[2])
+        local decay_time = tonumber(p[3])
+        local decay_hf_ratio = tonumber(p[4])
+        local reflections_delay = tonumber(p[5])
+        local reverb_delay = tonumber(p[6])
+        local room_rolloff = tonumber(p[7])
+        local diffusion = tonumber(p[8])
+        local reflections = tonumber(p[9]) or -2602.0
+        local reverb = tonumber(p[10]) or 200.0
+        local air_hf = tonumber(p[11]) or -5.0
+
+        level.set_efx_override(room, room_hf, decay_time, decay_hf_ratio, reflections_delay, reverb_delay, room_rolloff, diffusion, reflections, reverb, air_hf)
+    else
+        abort("Помилка: set_efx_override потребує мінімум 8 параметрів!")
+    end
+end
+
+-- Виклик із логіки: %=show_cinematic_borders(1:1500)%
+function show_cinematic_borders(actor, npc, p)
+    local anim_type = (p and p[1]) and tonumber(p[1]) or 0
+    local duration  = (p and p[2]) and tonumber(p[2]) or 500
+    level.show_cinematic_borders(anim_type, duration)
+end
+
+-- Виклик із логіки: %=hide_cinematic_borders(0:800)%
+function hide_cinematic_borders(actor, npc, p)
+    local anim_type = (p and p[1]) and tonumber(p[1]) or 0
+    local duration  = (p and p[2]) and tonumber(p[2]) or 500
+    level.hide_cinematic_borders(anim_type, duration)
+end
+
+-- xr_effects.lua
+function orbit_start(actor, npc)
+    if actor and npc then
+        -- Передаємо позицію рестриктора і радіус захоплення (15 метрів)
+        actor:start_orbit(npc:position(), 15.0)
+    end
+end
+
+function orbit_attack(actor, npc)
+    if actor then actor:attack_orbit() end
+end
+
+function orbit_stop(actor, npc)
+    if actor then actor:stop_orbit() end
 end

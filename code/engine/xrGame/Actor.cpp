@@ -1,4 +1,8 @@
 #include "stdafx.h"
+#include "../xrEngine/gamemtllib.h"
+#ifndef GMLibrary
+#define GMLibrary() GMLib 
+#endif
 #include "Actor_Flags.h"
 #include "hudmanager.h"
 #ifdef DEBUG
@@ -71,6 +75,9 @@
 #include "ActorHelmet.h"
 #include "UI/UIDragDropReferenceList.h"
 #include <algorithm> 
+
+#include "../xrPhysics/PhysicsShell.h"
+#include "../xrPhysics/PHElement.h"
 
 constexpr u32 patch_frames = 50;
 constexpr float respawn_delay = 1.f;
@@ -428,7 +435,6 @@ void CActor::Hit(SHit* pHDS) {
     if (!sndHit[HDS.hit_type].empty() && conditions().PlayHitSound(pHDS)) {
         ref_sound& S = sndHit[HDS.hit_type][Random.randI(sndHit[HDS.hit_type].size())];
         
-        // Використання C++11/17 лямбди замість застарілого функтора playing_pred
         bool b_snd_hit_playing = std::find_if(sndHit[HDS.hit_type].begin(), sndHit[HDS.hit_type].end(), 
             [](ref_sound& s) { return s._feedback() != nullptr; }) != sndHit[HDS.hit_type].end();
 
@@ -625,7 +631,6 @@ void CActor::Die(CObject* who) {
                 inventory().Ruck(item_in_slot);
         };
 
-        // очищення пояса
         while (!inventory().m_belt.empty())
             inventory().Ruck(inventory().m_belt.front());
 
@@ -757,6 +762,33 @@ void CActor::UpdateCL() {
     }
 
     UpdateInventoryOwner(Device.dwTimeDelta);
+	
+    if (m_bReverseGravity) {
+        m_fReverseGravityProgress += Device.fTimeDelta * 0.4f; 
+        if (m_fReverseGravityProgress > 1.0f) m_fReverseGravityProgress = 1.0f;
+        
+        if (m_pPhysics_support && m_pPhysics_support->movement()) {
+            Fvector vel;
+            m_pPhysics_support->movement()->GetCharacterVelocity(vel);
+            float ease = (1.0f - cosf(m_fReverseGravityProgress * PI)) / 2.0f;
+            vel.y = 1.8f * ease; 
+            m_pPhysics_support->movement()->SetVelocity(vel);
+        }
+    } else if (m_fReverseGravityProgress > 0.0f) {
+        m_fReverseGravityProgress -= Device.fTimeDelta * 0.5f; 
+        if (m_fReverseGravityProgress < 0.0f) m_fReverseGravityProgress = 0.0f;
+        
+        if (m_pPhysics_support && m_pPhysics_support->movement()) {
+            Fvector vel;
+            m_pPhysics_support->movement()->GetCharacterVelocity(vel);
+            if (vel.y < -4.0f) {
+                vel.y = -4.0f * m_fReverseGravityProgress; 
+                m_pPhysics_support->movement()->SetVelocity(vel);
+            }
+        }
+    }
+	
+	UpdateOrbitAnomaly();
 
     if (m_feel_touch_characters > 0) {
         for (auto* obj : feel_touch) {
@@ -1010,19 +1042,16 @@ void CActor::shedule_Update(u32 DT) {
     if (!character_physics_support()->IsRemoved())
         setVisible(!HUDview());
 
-	// що актер бачить перед собою
     collide::rq_result& RQ = HUD().GetCurrentRayQuery();
 
     if (!input_external_handler_installed() && RQ.O && RQ.O->getVisible() && RQ.range < 2.0f) {
         m_pObjectWeLookingAt = smart_cast<CGameObject*>(RQ.O);
 
         if (CGameObject* game_object = m_pObjectWeLookingAt) {
-            // МАКСИМАЛЬНА ОПТИМІЗАЦІЯ: Віртуальні касти замість важкого smart_cast
             m_pPersonWeLookingAt  = game_object->cast_inventory_owner();
             m_pVehicleWeLookingAt = game_object->cast_holder_custom();
             CEntityAlive* pEntityAlive = game_object->cast_entity_alive();
             
-            // Для цих двох залишаємо smart_cast, бо рушій зазвичай не має для них швидких віртуальних методів
             m_pUsableObject = smart_cast<CUsableScriptObject*>(game_object);
             m_pInvBoxWeLookingAt = smart_cast<CInventoryBox*>(game_object);
 
@@ -1316,7 +1345,6 @@ void CActor::OnItemDrop(CInventoryItem* inventory_item, bool just_before_destroy
 void CActor::OnItemDropUpdate() {
     CInventoryOwner::OnItemDropUpdate();
 
-    // C++17 Range-based цикл замість ітераторів
     for (auto* item : inventory().m_all) {
         if (!item->IsInvalid() && !attached(item)) {
             attach(item);
@@ -1346,7 +1374,6 @@ void CActor::UpdateArtefactsOnBeltAndOutfit() {
         update_time = 0.0f;
     }
 
-    // C++17 Range-based цикл для інвентарю
     for (auto* item : inventory().m_belt) {
         if (CArtefact* artefact = smart_cast<CArtefact*>(item)) {
             conditions().ChangeBleeding(artefact->m_fBleedingRestoreSpeed * f_update_time);
@@ -1356,7 +1383,7 @@ void CActor::UpdateArtefactsOnBeltAndOutfit() {
             
             if (artefact->m_fRadiationRestoreSpeed > 0.0f) {
                 float val = artefact->m_fRadiationRestoreSpeed - conditions().GetBoostRadiationImmunity();
-                val = std::max(0.0f, val); // Заміна старого clamp на безпечний std::max
+                val = std::max(0.0f, val); 
                 conditions().ChangeRadiation(val * f_update_time);
             } else {
                 conditions().ChangeRadiation(artefact->m_fRadiationRestoreSpeed * f_update_time);
@@ -1385,7 +1412,7 @@ float CActor::HitArtefactsOnBelt(float hit_power, ALife::EHitType hit_type) {
             hit_power -= artefact->m_ArtefactHitImmunities.AffectHit(1.0f, hit_type);
         }
     }
-    return std::max(hit_power, 0.0f); // Гарантуємо, що сила хіта не стане від'ємною
+    return std::max(hit_power, 0.0f); 
 }
 
 float CActor::GetProtection_ArtefactsOnBelt(ALife::EHitType hit_type) {
@@ -1453,11 +1480,9 @@ bool CActor::can_attach(const CInventoryItem* inventory_item) const {
     if (!item || !item->can_be_attached())
         return false;
 
-    // чи можна приєднувати об'єкти такого типу
     if (std::find(m_attach_item_sections.begin(), m_attach_item_sections.end(), inventory_item->object().cNameSect()) == m_attach_item_sections.end())
         return false;
 
-    // чи вже є приєднаний об'єкт такого типу
     if (attached(inventory_item->object().cNameSect()))
         return false;
 
@@ -1504,7 +1529,6 @@ float CActor::GetRestoreSpeed(ALife::EConditionRestoreType const& type) {
         res = conditions().change_v().m_fV_HealthRestore;
         res += conditions().V_SatietyHealth() * ((conditions().GetSatiety() > 0.0f) ? 1.0f : -1.0f);
 
-        // Сучасний C++17 цикл
         for (auto* item : inventory().m_belt) {
             if (CArtefact* artefact = smart_cast<CArtefact*>(item)) {
                 res += artefact->m_fHealthRestoreSpeed;
@@ -1584,4 +1608,205 @@ void CActor::On_SetEntity() {
 
 bool CActor::unlimited_ammo() { 
     return psActorFlags.test(AF_UNLIMITEDAMMO) != 0; 
+}
+
+void CActor::SetReverseGravity(bool state) {
+    m_bReverseGravity = state;
+}
+
+inline float SmootherStep(float edge0, float edge1, float x) {
+    x = std::clamp((x - edge0) / (edge1 - edge0), 0.0f, 1.0f);
+    return x * x * x * (x * (x * 6.0f - 15.0f) + 10.0f);
+}
+
+void CActor::StartOrbitAnomaly(Fvector center, float radius) {
+    m_AnomalyState = 1;
+    m_AnomalyCenter = center;
+    m_AnomalyRadius = radius;
+    m_OrbitObjects.clear();
+
+    for (int i = 1; i < 65534; ++i) {
+        CPhysicsShellHolder* obj = smart_cast<CPhysicsShellHolder*>(Level().Objects.net_Find(i));
+        
+        if (obj && obj->ID() != this->ID() && obj->m_pPhysicsShell) {
+            if (obj->Position().distance_to(center) <= radius) {
+                float mass = obj->m_pPhysicsShell->getMass();
+                if (mass > 0.1f && mass < 500.0f) {
+                    SOrbitObject orb;
+                    orb.id = obj->ID();
+                    orb.target_radius = ::Random.randF(2.0f, radius);
+                    orb.base_speed = ::Random.randF(1.5f, 3.5f);
+                    orb.phase = ::Random.randF(0.0f, PI_MUL_2);
+                    
+                    orb.height_offset = ::Random.randF(1.5f, 4.0f); 
+                    orb.spin_axis.set(::Random.randF(-1.f, 1.f), ::Random.randF(-1.f, 1.f), ::Random.randF(-1.f, 1.f)).normalize();
+                    
+                    orb.start_pos = obj->Position();
+                    orb.start_pos.y += 1.0f; 
+                    
+                    orb.time_captured = float(Device.dwTimeGlobal) / 1000.0f;
+                    m_OrbitObjects.push_back(orb);
+                    
+                    Fvector dir = {0.0f, 1.0f, 0.0f};
+                    obj->m_pPhysicsShell->applyImpulse(dir, mass * 3.5f); 
+                }
+            }
+        }
+    }
+}
+
+void CActor::SetOrbitAttack() {
+    m_AnomalyState = 2;
+    m_ActorCaptureTime = float(Device.dwTimeGlobal) / 1000.0f;
+    for (auto& orb : m_OrbitObjects) {
+        orb.time_captured = m_ActorCaptureTime; 
+    }
+}
+
+void CActor::StopOrbitAnomaly() {
+    m_AnomalyState = 0;
+    m_OrbitObjects.clear();
+}
+
+void CActor::UpdateOrbitAnomaly() {
+    if (m_AnomalyState == 0) return;
+
+    float dt = Device.fTimeDelta;
+    float current_time = float(Device.dwTimeGlobal) / 1000.0f; 
+    Fvector attack_target = Position();
+    attack_target.y += 1.2f; 
+
+    for (auto it = m_OrbitObjects.begin(); it != m_OrbitObjects.end(); ) {
+        CPhysicsShellHolder* obj = smart_cast<CPhysicsShellHolder*>(Level().Objects.net_Find(it->id));
+        if (!obj || !obj->m_pPhysicsShell || !obj->m_pPhysicsShell->isActive()) {
+            it = m_OrbitObjects.erase(it); continue;
+        }
+
+        CPhysicsShell* shell = obj->m_pPhysicsShell;
+        CPHElement* elem = cast_PHElement(shell->get_ElementByStoreOrder(0));
+        if (!elem || !elem->isActive()) {
+            it = m_OrbitObjects.erase(it); continue;
+        }
+
+        elem->Enable(); 
+
+        Fvector pos = obj->Position();
+        float mass = elem->getMass(); 
+        Fvector current_vel;
+        elem->get_LinearVel(current_vel); 
+
+        Fvector offset;
+        offset.sub(pos, m_AnomalyCenter);
+        float current_height = offset.y; 
+        offset.y = 0.0f; 
+        
+        float dist = offset.magnitude();
+        Fvector radial_dir;
+        
+        if (dist > 0.01f) {
+            radial_dir = offset; 
+            radial_dir.normalize(); 
+        } else {
+            radial_dir.set(1.0f, 0.0f, 0.0f);
+            dist = 0.01f;
+        }
+
+        Fvector tangent_dir;
+        tangent_dir.set(-radial_dir.z, 0.0f, radial_dir.x);
+
+        float speed_multiplier = std::clamp(8.0f / dist, 1.0f, 12.0f);
+        float target_speed = it->base_speed * speed_multiplier; 
+
+        Fvector desired_vel = tangent_dir;
+        desired_vel.mul(target_speed);
+
+        float target_r = (m_AnomalyState == 2) ? (it->target_radius * 0.3f) : it->target_radius;
+        Fvector radius_correction = radial_dir;
+        radius_correction.mul((target_r - dist) * 4.0f);
+        desired_vel.add(radius_correction);
+
+        float wave = sinf(current_time * 2.0f + it->phase) * 0.3f;
+        desired_vel.y = ((it->height_offset + wave) - current_height) * 4.0f;
+
+        Fvector total_force;
+        total_force.sub(desired_vel, current_vel);
+        total_force.mul(mass * 80.0f); 
+        total_force.y += mass * 9.81f;
+
+        float age = current_time - it->time_captured;
+        float ease = SmootherStep(0.0f, 2.5f, age);
+        total_force.mul(ease);
+
+        elem->applyForce(total_force.x, total_force.y, total_force.z);
+
+        Fvector torque = it->spin_axis;
+        torque.mul(mass * 4.0f * speed_multiplier); 
+        elem->setTorque(torque);
+
+        ++it;
+    }
+
+    if (m_AnomalyState == 2 && m_pPhysics_support && m_pPhysics_support->movement()) {
+        float time_inside = current_time - m_ActorCaptureTime;
+        float power = std::clamp(time_inside / 4.0f, 0.0f, 1.0f); 
+
+        Fvector actor_pos = Position();
+        Fvector offset;
+        offset.sub(m_AnomalyCenter, actor_pos);
+        float dist_to_center = offset.magnitude();
+
+        if (dist_to_center < 0.7f && power > 0.9f) {
+            SHit hit;
+            hit.power = 10000.0f;
+            hit.dir.set(0, 1, 0);                    
+            hit.who = this;                          
+            hit.hit_type = ALife::eHitTypeExplosion; 
+            
+            this->Hit(&hit);
+            StopOrbitAnomaly();
+            return;
+        }
+
+        if (dist_to_center >= m_AnomalyRadius && power > 0.8f) {
+            Fvector throw_dir = offset; 
+            throw_dir.invert(); 
+            throw_dir.normalize_safe();
+            throw_dir.y = 0.4f; 
+            
+            Fvector throw_vel = throw_dir;
+            throw_vel.mul(25.0f); 
+            
+            m_pPhysics_support->movement()->SetVelocity(throw_vel);
+            StopOrbitAnomaly();
+            return;
+        }
+
+        Fvector current_actor_vel;
+        m_pPhysics_support->movement()->GetCharacterVelocity(current_actor_vel);
+
+        Fvector pull_dir = offset;
+        pull_dir.y = 0.0f; 
+        if (pull_dir.magnitude() > 0.01f) pull_dir.normalize();
+        else pull_dir.set(1.0f, 0.0f, 0.0f);
+
+        Fvector spin_dir;
+        spin_dir.set(-pull_dir.z, 0.0f, pull_dir.x);
+
+        float pull_speed = power * 6.5f; 
+        float spin_power = std::max(0.0f, (power - 0.5f) * 2.0f);
+        float spin_speed = spin_power * (18.0f / std::max(dist_to_center, 1.0f));
+
+        Fvector target_vel = current_actor_vel;
+        target_vel.lerp(target_vel, Fvector().set(0,0,0), power * dt * 2.0f); 
+
+        target_vel.x += pull_dir.x * pull_speed * dt * 10.0f;
+        target_vel.z += pull_dir.z * pull_speed * dt * 10.0f;
+        target_vel.x += spin_dir.x * spin_speed * dt * 10.0f;
+        target_vel.z += spin_dir.z * spin_speed * dt * 10.0f;
+
+        float lift_speed = power * 3.5f;
+        target_vel.y = lift_speed;
+
+        m_pPhysics_support->movement()->SetVelocity(target_vel);
+    }
 }

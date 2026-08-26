@@ -161,6 +161,7 @@ public:
     ref_constant hwc_s_consts;
     ref_constant hwc_s_xform;
     ref_constant hwc_s_array;
+    ref_constant hwc_grass_effector; // <--- ДОДАНО ДЛЯ ЗМИНАННЯ ТРАВИ
     
     void hw_Load();
     void hw_Load_Geom();

@@ -138,13 +138,20 @@ void CDetailManager::hw_Load_Shaders() {
     S.create("details\\set");
     R_constant_table& T0 = *(S->E[0]->passes[0]->constants);
     R_constant_table& T1 = *(S->E[1]->passes[0]->constants);
+    
     hwc_consts = T0.get("consts");
     hwc_wave = T0.get("wave");
     hwc_wind = T0.get("dir2D");
     hwc_array = T0.get("array");
+    
     hwc_s_consts = T1.get("consts");
     hwc_s_xform = T1.get("xform");
     hwc_s_array = T1.get("array");
+
+    // =======================================================
+    // ЗВ'ЯЗУЄМО НАШУ КОНСТАНТУ З ШЕЙДЕРОМ
+    // =======================================================
+    hwc_grass_effector = T0.get("m_grass_effector"); 
 }
 
 void CDetailManager::hw_Render() {
@@ -164,6 +171,15 @@ void CDetailManager::hw_Render() {
     dir2.set(std::sin(tm_rot2), 0.f, std::cos(tm_rot2), 0.f).normalize().mul(swing_current.amp2);
 
     RCache.set_Geometry(hw_Geom);
+
+    // =======================================================
+    // ПЕРЕДАЄМО КООРДИНАТИ ГРАВЦЯ В ШЕЙДЕР КОЖЕН КАДР
+    // =======================================================
+    if (hwc_grass_effector) {
+        Fvector pos = RDEVICE.vCameraPosition;
+        RCache.set_c(&*hwc_grass_effector, pos.x, pos.y, pos.z, 1.5f);
+    }
+    // =======================================================
 
     const float scale = 1.f / static_cast<float>(quant);
     Fvector4 wave;

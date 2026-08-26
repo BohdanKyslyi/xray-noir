@@ -15,11 +15,9 @@ public:
     [[nodiscard]] virtual const Fsphere& GetDropBounds() const override;
 
 private:
-    // Visualization (rain)
     ref_shader SH_Rain;
     ref_geom hGeom_Rain;
 
-    // Visualization (drops)
     IRender_DetailModel* DM_Drop{ nullptr };
     ref_geom hGeom_Drops;
 };

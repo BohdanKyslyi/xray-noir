@@ -84,12 +84,14 @@ void CActor::g_cl_ValidateMState(float dt, u32 mstate_wf) {
     }
     if (character_physics_support()->movement()->Environment() == CPHMovementControl::peAtWall) {
         if (!(mstate_real & mcClimb)) {
+			Msg("~ DEBUG [LADDER]: Актор отримав статус mcClimb!");
             mstate_real |= mcClimb;
             mstate_real &= ~mcSprint;
             cam_SetLadder();
         }
     } else {
         if (mstate_real & mcClimb) {
+			Msg("~ DEBUG [LADDER]: Актор ВТРАТИВ статус mcClimb (відірвався від драбини)");
             cam_UnsetLadder();
         }
         mstate_real &= ~mcClimb;

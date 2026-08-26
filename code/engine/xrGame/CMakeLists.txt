@@ -1135,7 +1135,10 @@ set(AI_ASCRIPT_SCRIPTCLASSES_UI_UIWINDOWS_STATIC ui/UIAnimatedStatic.h
                                                  ui/UILanimController.cpp
                                                  ui/UIStatic.cpp
                                                  ui/UIStatic_script.cpp
-                                                 UIStaticItem.cpp)
+                                                 UIStaticItem.cpp
+												 ui/UICinematicBorders.h
+												 ui/UICinematicBorders.cpp
+												 )
 
 set(AI_ACOMPONENTS_PROBLEMSOLVER_OPERATOR_CONDITION_SCRIPTWORLDPROPERTY script_world_property.h
                                                                         script_world_property_inline.h

@@ -115,6 +115,10 @@ public:
 
     // EFX Рефакторинг: Замість старих EAX-костилів, ми передаємо середовище в CoreA
     virtual void update_environment(CSound_environment* E) = 0;
+	
+	// NOIR ENGINE: Cinematic EFX Control
+    virtual void set_efx_override(bool bEnable, float room = -10000.0f, float room_hf = 0.0f, float decay_time = 1.0f, float decay_hf_ratio = 0.5f, float reflections_delay = 0.02f, float reverb_delay = 0.04f, float room_rolloff_factor = 0.0f, float diffusion = 1.0f, float reflections = -2602.0f, float reverb = 200.0f, float air_absorption_hf = -5.0f) {}
+    virtual void set_efx_override(LPCSTR preset_name) {}
 
 #ifdef _EDITOR
     virtual SoundEnvironment_LIB* get_env_library() { return s_environment; }

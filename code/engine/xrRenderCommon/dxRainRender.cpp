@@ -87,6 +87,7 @@ void dxRainRender::Render(CEffect_Rain& owner) {
         owner.drops.pz[i] += owner.drops.dz[i] * mult;
     }
 
+	Device.Statistic->TEST1.Begin();
     for (u32 id = 0; id < count; ++id) {
         
         if (owner.drops.dwTime_Hit[id] < current_time) {
@@ -105,7 +106,7 @@ void dxRainRender::Render(CEffect_Rain& owner) {
             Fvector d = { owner.drops.dx[id], owner.drops.dy[id], owner.drops.dz[id] };
 
             float height = max_distance;
-            u16 dummy_mat; 
+            u16 dummy_mat = u16(-1);
             if (owner.RayPick(p, d, height, collide::rqtBoth, dummy_mat)) {
                 owner.RenewItem(id, height, TRUE, dummy_mat);
                 owner.drops.hit_x[id] = p.x + d.x * height;
@@ -123,7 +124,6 @@ void dxRainRender::Render(CEffect_Rain& owner) {
         Fvector pos = { owner.drops.px[id], owner.drops.py[id], owner.drops.pz[id] };
         Fvector dir = { owner.drops.dx[id], owner.drops.dy[id], owner.drops.dz[id] };
 
-        Device.Statistic->TEST1.Begin();
         Fvector wdir; wdir.set(pos.x - vEye.x, 0.f, pos.z - vEye.z);
         
         if (wdir.square_magnitude() > b_radius_wrap_sqr) {
@@ -143,7 +143,7 @@ void dxRainRender::Render(CEffect_Rain& owner) {
                 if (src_plane.intersectRayPoint(pos, inv_dir, src_p)) {
                     float dist_sqr = pos.distance_to_sqr(src_p);
                     float height = max_distance;
-                    u16 dummy_mat; 
+                    u16 dummy_mat = u16(-1);
                     if (owner.RayPick(src_p, dir, height, collide::rqtBoth, dummy_mat)) {
                         if (xr::sqr(height) <= dist_sqr) owner.drops.invalidate(id);
                         else owner.RenewItem(id, height - std::sqrt(dist_sqr), TRUE, dummy_mat);
@@ -153,42 +153,65 @@ void dxRainRender::Render(CEffect_Rain& owner) {
                 } else owner.drops.invalidate(id);
             }
         }
-        Device.Statistic->TEST1.End();
 
         Fvector pos_trail;
         pos_trail.mad(pos, dir, -drop_length * factor_visual);
 
         if (current_time >= owner.drops.dwTime_Hit[id]) {
             Fvector hit_pos = { owner.drops.hit_x[id], owner.drops.hit_y[id], owner.drops.hit_z[id] };
-            pos = hit_pos; 
+            pos = hit_pos;
             if (pos_trail.y < hit_pos.y) pos_trail = hit_pos;
+        }
+
+        {
+            Fvector head_to_eye, trail_to_eye;
+            head_to_eye.sub(pos, vEye);
+            trail_to_eye.sub(pos_trail, vEye);
+
+            const float head_depth = head_to_eye.dotproduct(Device.vCameraDirection);
+            const float trail_depth = trail_to_eye.dotproduct(Device.vCameraDirection);
+
+            constexpr float rain_near_depth = 1.0f;
+
+            if (head_depth <= rain_near_depth || trail_depth <= rain_near_depth)
+                continue;
         }
 
         Fvector sC, lineD;
         sC.sub(pos, pos_trail);
-        if (sC.square_magnitude() < EPS_L) continue; 
 
-        // Арісу: Виправлено баг із зламаними векторами!
+        const float segment_len_sqr = sC.square_magnitude();
+        if (segment_len_sqr < EPS_L)
+            continue;
+
         lineD.set(sC);
-        lineD.normalize_safe(); 
-        
+        lineD.normalize_safe();
+
         sC.mul(0.5f);
-        float sR = sC.magnitude(); 
+        float sR = sC.magnitude();
         sC.add(pos_trail);
-        
-        if (!::Render->ViewBase.testSphere_dirty(sC, sR)) continue;
+
+        if (!::Render->ViewBase.testSphere_dirty(sC, sR))
+            continue;
 
 		static constexpr Fvector2 UV[2][4] = {
 			{ { 0.f, 1.f }, { 0.f, 0.f }, { 1.f, 1.f }, { 1.f, 0.f } },
-			{ { 1.f, 0.f }, { 1.f, 1.f }, { 0.f, 0.f }, { 1.f, 0.f } } // <-- Помилка в останніх дужках
+			{ { 1.f, 0.f }, { 1.f, 1.f }, { 0.f, 0.f }, { 0.f, 1.f } }
 		};
 
         Fvector P, lineTop, camDir;
+
+        // Per-drop eye direction keeps the rain strip facing the camera.
         camDir.sub(sC, vEye);
-        camDir.normalize_safe(); 
+        camDir.normalize_safe();
+
         lineTop.crossproduct(camDir, lineD);
-        if (lineTop.square_magnitude() < EPS) lineTop.set(1.f, 0.f, 0.f);
-        lineTop.normalize_safe(); 
+
+        // Degenerate case: camera looks almost exactly along the streak.
+        if (lineTop.square_magnitude() < EPS)
+            lineTop.set(Device.vCameraRight);
+
+        lineTop.normalize_safe();
         
         float w = drop_width;
         u32 s = owner.drops.uv_set[id] & 1; 
@@ -198,7 +221,8 @@ void dxRainRender::Render(CEffect_Rain& owner) {
         P.mad(pos, lineTop, -w);       verts->set(P, u_rain_color, UV[s][2].x, UV[s][2].y); verts++;
         P.mad(pos, lineTop, w);        verts->set(P, u_rain_color, UV[s][3].x, UV[s][3].y); verts++;
     }
-    
+	
+    Device.Statistic->TEST1.End();
     u32 vCount = static_cast<u32>(verts - start);
     RCache.Vertex.Unlock(vCount, hGeom_Rain->vb_stride);
 

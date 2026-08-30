@@ -119,7 +119,7 @@ public:
     virtual void RMotionsQuery(qResultVec& res) {}
     
     [[nodiscard]] virtual CPHMoveStorage* MoveStorage() { return nullptr; }
-    [[nodiscard]] virtual ECastType CastType() const { return tpNotDefinite; }
+    [[nodiscard]] virtual ECastType CastType() { return tpNotDefinite; }
     
     virtual void vis_update_activate() {}
     virtual void vis_update_deactivate() {}

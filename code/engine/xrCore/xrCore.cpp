@@ -1,7 +1,6 @@
 // xrCore.cpp : Defines the entry point for the DLL application.
 //
 #include "stdafx.h"
-
 #include <mmsystem.h>
 #include <objbase.h>
 #include "xrCore.h"
@@ -55,6 +54,11 @@ void xrCore::_initialize(const char* _ApplicationName, LogCallback cb, bool init
 
         InitLog();
         _initialize_cpu();
+		
+		Jobs::Initialize();
+
+		Msg("* JobSystem initialized: %u worker threads", Jobs::WorkerCount());
+		
 
         //		Debug._initialize	();
 
@@ -95,6 +99,7 @@ void xrCore::_initialize(const char* _ApplicationName, LogCallback cb, bool init
 void xrCore::_destroy() {
     --init_counter;
     if (0 == init_counter) {
+		Jobs::Shutdown();
         FS._destroy();
         xr_delete(xr_FS);
 

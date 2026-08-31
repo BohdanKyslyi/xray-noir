@@ -19,6 +19,7 @@
 #include "../../xrEngine/cameraBase.h"
 #include "UIXmlInit.h"
 #include "UI3tButton.h"
+#include "UIStatic.h"
 
 CUITalkWnd::CUITalkWnd() {
     m_pActor = NULL;
@@ -63,20 +64,34 @@ void CUITalkWnd::InitTalkWnd() {
     UITalkDialogWnd->m_pParent = this;
     UITalkDialogWnd->InitTalkDialogWnd();
 
-    if (m_bShowPortraits) {
-        CUIXml uiXml;
-        uiXml.Load(CONFIG_PATH, UI_PATH, "talk.xml");
+	if (m_bShowPortraits) {
+		CUIXml uiXml;
+		uiXml.Load(CONFIG_PATH, UI_PATH, "talk.xml");
 
-        m_UIInfoLeft = xr_new<CUICharacterInfo>();
-        m_UIInfoLeft->SetAutoDelete(true);
-        AttachChild(m_UIInfoLeft);
-        m_UIInfoLeft->InitCharacterInfo(&uiXml, "left_character_window");
+		m_UIInfoLeft = xr_new<CUICharacterInfo>();
+		m_UIInfoLeft->SetAutoDelete(true);
+		AttachChild(m_UIInfoLeft);
 
-        m_UIInfoRight = xr_new<CUICharacterInfo>();
-        m_UIInfoRight->SetAutoDelete(true);
-        AttachChild(m_UIInfoRight);
-        m_UIInfoRight->InitCharacterInfo(&uiXml, "right_character_window");
-    }
+		CUIStatic* left_background = xr_new<CUIStatic>();
+		left_background->SetAutoDelete(true);
+		m_UIInfoLeft->AttachChild(left_background);
+
+		CUIXmlInit::InitStatic(uiXml, "left_character_window:background", 0, left_background);
+
+		m_UIInfoLeft->InitCharacterInfo(&uiXml, "left_character_window");
+
+		m_UIInfoRight = xr_new<CUICharacterInfo>();
+		m_UIInfoRight->SetAutoDelete(true);
+		AttachChild(m_UIInfoRight);
+
+		CUIStatic* right_background = xr_new<CUIStatic>();
+		right_background->SetAutoDelete(true);
+		m_UIInfoRight->AttachChild(right_background);
+
+		CUIXmlInit::InitStatic(uiXml, "right_character_window:background", 0, right_background);
+
+		m_UIInfoRight->InitCharacterInfo(&uiXml, "right_character_window");
+	}
 }
 
 void CUITalkWnd::InitTalkDialog() {
